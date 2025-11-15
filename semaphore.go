@@ -19,9 +19,7 @@ type semaphore struct {
 	cond  *sync.Cond
 }
 
-// -------------------------
-// Sémaphore procédural
-// -------------------------
+// I creates a new semaphore with the given name and initial count.
 func I(name string, initial int) {
 	globalMu.Lock()
 	defer globalMu.Unlock()
@@ -32,6 +30,7 @@ func I(name string, initial int) {
 	semaphores[name] = s
 }
 
+// P decrements the semaphore count and waits if the count is less than zero.
 func P(name string) {
 	s := getSemaphore(name)
 	s.mu.Lock()
@@ -43,6 +42,7 @@ func P(name string) {
 	}
 }
 
+// V increments the semaphore count and signals any waiting goroutines.
 func V(name string) {
 	s := getSemaphore(name)
 	s.mu.Lock()
@@ -52,6 +52,8 @@ func V(name string) {
 	s.cond.Signal()
 }
 
+// getSemaphore retrieves a semaphore by its name.
+// It panics if the semaphore is not found.
 func getSemaphore(name string) *semaphore {
 	globalMu.Lock()
 	defer globalMu.Unlock()
@@ -69,6 +71,7 @@ func RandomDelay() {
 	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 }
 
+// Repeat calls the provided function fn a specified number of times or indefinitely if times is less than or equal to zero.
 func Repeat(times int, fn func()) {
 	if times <= 0 {
 		for {
@@ -86,7 +89,7 @@ func Loop(fn func()) {
 	Repeat(0, fn)
 }
 
-// Process lance une goroutine et l'ajoute au WaitGroup interne
+// Process starts a goroutine and adds it to the internal WaitGroup.
 func Process(f func()) {
 	wg.Add(1)
 	go func() {
@@ -96,7 +99,7 @@ func Process(f func()) {
 	}()
 }
 
-// Wait attend que toutes les goroutines lancées via Process() soient terminées
+// Wait blocks until all goroutines launched via Process() have completed.
 func Wait() {
 	wg.Wait()
 }
@@ -106,6 +109,7 @@ var (
 	semNameMu          sync.Mutex
 )
 
+// NomSemaphore generates a unique semaphore name.
 func NomSemaphore() string {
 	semNameMu.Lock()
 	defer semNameMu.Unlock()
