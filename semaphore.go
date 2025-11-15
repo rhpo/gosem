@@ -1,4 +1,4 @@
-package sema
+package gosem
 
 import (
 	"fmt"
@@ -16,48 +16,46 @@ var (
 type semaphore struct {
 	count int
 	mu    sync.Mutex
-	wq    chan struct{}
+	cond  *sync.Cond
 }
 
 // -------------------------
 // Sémaphore procédural
 // -------------------------
-
 func I(name string, initial int) {
 	globalMu.Lock()
 	defer globalMu.Unlock()
-	semaphores[name] = &semaphore{
+	s := &semaphore{
 		count: initial,
-		wq:    make(chan struct{}),
 	}
+	s.cond = sync.NewCond(&s.mu)
+	semaphores[name] = s
 }
 
 func P(name string) {
 	s := getSemaphore(name)
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.count--
-	if s.count < 0 {
-		s.mu.Unlock()
-		<-s.wq
-		return
+	for s.count < 0 {
+		s.cond.Wait()
 	}
-	s.mu.Unlock()
 }
 
 func V(name string) {
 	s := getSemaphore(name)
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	s.count++
-	if s.count <= 0 {
-		s.wq <- struct{}{}
-	}
-	s.mu.Unlock()
+	s.cond.Signal()
 }
 
 func getSemaphore(name string) *semaphore {
 	globalMu.Lock()
+	defer globalMu.Unlock()
 	s, ok := semaphores[name]
-	globalMu.Unlock()
 	if !ok {
 		panic("semaphore not found: " + name)
 	}
@@ -67,20 +65,18 @@ func getSemaphore(name string) *semaphore {
 // -------------------------
 // Gestion simple des goroutines
 // -------------------------
-
 func RandomDelay() {
-	time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
+	time.Sleep(time.Duration(rand.Intn(10)) * time.Millisecond)
 }
 
 func Repeat(times int, fn func()) {
 	if times <= 0 {
 		for {
-			RandomDelay()
 			fn()
+			RandomDelay()
 		}
 	} else {
 		for range times {
-			RandomDelay()
 			fn()
 		}
 	}
@@ -90,24 +86,29 @@ func Loop(fn func()) {
 	Repeat(0, fn)
 }
 
-// Go lance une goroutine et l'ajoute au WaitGroup interne
+// Process lance une goroutine et l'ajoute au WaitGroup interne
 func Process(f func()) {
-	wg.Go(func() {
-		// Add random delay (to simulate asyncronous behaviour)
-		RandomDelay()
-
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(time.Duration(rand.Intn(5)) * time.Millisecond) // Small startup delay
 		f()
-	})
+	}()
 }
 
-// Wait attend que toutes les goroutines lancées via Go() soient terminées
+// Wait attend que toutes les goroutines lancées via Process() soient terminées
 func Wait() {
 	wg.Wait()
 }
 
-var semaphoreNameIndex = 0
+var (
+	semaphoreNameIndex = 0
+	semNameMu          sync.Mutex
+)
 
 func NomSemaphore() string {
+	semNameMu.Lock()
+	defer semNameMu.Unlock()
 	semaphoreNameIndex++
 	return fmt.Sprint("s", semaphoreNameIndex)
 }
