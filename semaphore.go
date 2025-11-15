@@ -32,6 +32,7 @@ func I(name string, initial int) {
 	}
 }
 
+// P decrements the semaphore count for the given name and waits if the count is negative.
 func P(name string) {
 	s := getSemaphore(name)
 	s.mu.Lock()
@@ -44,6 +45,7 @@ func P(name string) {
 	s.mu.Unlock()
 }
 
+// V increments the semaphore count and signals if it was previously zero.
 func V(name string) {
 	s := getSemaphore(name)
 	s.mu.Lock()
@@ -54,6 +56,8 @@ func V(name string) {
 	s.mu.Unlock()
 }
 
+// getSemaphore retrieves a semaphore by its name.
+// It panics if the semaphore is not found.
 func getSemaphore(name string) *semaphore {
 	globalMu.Lock()
 	s, ok := semaphores[name]
@@ -68,10 +72,12 @@ func getSemaphore(name string) *semaphore {
 // Gestion simple des goroutines
 // -------------------------
 
+// RandomDelay pauses execution for a random duration up to 50 milliseconds.
 func RandomDelay() {
 	time.Sleep(time.Duration(rand.Intn(50)) * time.Millisecond)
 }
 
+// Repeat calls the provided function fn a specified number of times, with a random delay between calls.
 func Repeat(times int, fn func()) {
 	if times <= 0 {
 		for {
@@ -86,6 +92,7 @@ func Repeat(times int, fn func()) {
 	}
 }
 
+// Loop calls the provided function fn once.
 func Loop(fn func()) {
 	Repeat(0, fn)
 }
@@ -100,13 +107,14 @@ func Process(f func()) {
 	})
 }
 
-// Wait attend que toutes les goroutines lancées via Go() soient terminées
+// Wait blocks until all goroutines launched via Go() have completed.
 func Wait() {
 	wg.Wait()
 }
 
 var semaphoreNameIndex = 0
 
+// NomSemaphore generates a unique semaphore name.
 func NomSemaphore() string {
 	semaphoreNameIndex++
 	return fmt.Sprint("s", semaphoreNameIndex)
