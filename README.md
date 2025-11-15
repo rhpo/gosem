@@ -78,3 +78,5 @@ func main() {
 
 }
 ```
+
+### A Small example is also available [Here](https://github.com/rhpo/gosem-example).
